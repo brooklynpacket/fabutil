@@ -235,6 +235,7 @@ def setup_user_account(acct=None, home=None):
             putstr=auth2, use_sudo=True)
         sudo('chmod 600 {home}/.ssh/authorized_keys2')
     sudo('chown -R {acct}:{acct} {home}')
+    sudo('adduser {acct} adm')
 
 
 @task
