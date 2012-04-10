@@ -341,3 +341,9 @@ def irc_msg(server, port, nick, channel, msg, password=None, sleep=5):
         client.connection.close()
     else:
         pass
+
+@task
+@roles('system-role')
+def delete_mail_queue():
+    'Delete postfix email queue'
+    sudo('postsuper -d ALL')
