@@ -139,6 +139,19 @@ def configure_nginx(conf, name):
 
 
 @task
+@roles('system-role')
+def configure_sd_plugin(conf):
+    '''Copies a plugin template to a plugin directory, and points the ServerDensity config file at that directory'''
+    if conf[-9:] == '.template':
+        filename = conf[:-9].split('/')[-1]
+    else:
+        filename = conf.split('/')[-1]
+    run('mkdir -p /usr/bin/sd-agent/plugins')
+    put(conf, '/usr/bin/sd-agent/plugins/'+filename, template=True)
+    run('sudo -u sd-agent perl -pi -e "s/^plugin_directory:.*\$/plugin_directory: \/usr\/bin\/sd-agent\/plugins/" -f /etc/sd-agent/config.cfg')
+    run('sudo /etc/init.d/sd-agent restart')
+
+@task
 @roles('web')
 def deploy_crontab():
     if env.crontab:
