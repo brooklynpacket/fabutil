@@ -146,8 +146,10 @@ def configure_sd_plugin(conf):
         filename = conf[:-9].split('/')[-1]
     else:
         filename = conf.split('/')[-1]
-    run('mkdir -p /usr/bin/sd-agent/plugins')
+    run('sudo mkdir -p /usr/bin/sd-agent/plugins')
+    run('sudo chmod 777 /usr/bin/sd-agent/plugins')
     put(conf, '/usr/bin/sd-agent/plugins/'+filename, template=True)
+    run('sudo chmod 755 /usr/bin/sd-agent/plugins')
     run('sudo -u sd-agent perl -pi -e "s/^plugin_directory:.*\$/plugin_directory: \/usr\/bin\/sd-agent\/plugins/" -f /etc/sd-agent/config.cfg')
     run('sudo /etc/init.d/sd-agent restart')
 
