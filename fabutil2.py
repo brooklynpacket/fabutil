@@ -500,6 +500,13 @@ def update_package_repository(pip='CURRENT/bin/pip',
     run('touch ' + cache_directory + '/.timestamp')
 
 
+def install_from_package_repository(pip='CURRENT/bin/pip',
+                            cache_directory='{home}/shared/pipdcache',
+                            requirements_file='{home}/tmp/requirements2.txt'):
+    run(' '.join([pip, 'install', '--no-index', '--quiet', '--find-links',
+                  cache_directory, '-r', requirements_file]).format(**env))
+
+
 def is_repository_out_of_date(cache_directory='{home}/shared/pipdcache/',
                               days=15):
     now = int(time.time())
