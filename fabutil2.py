@@ -9,6 +9,7 @@ from fabric.api import run as fabric_run, sudo as fabric_sudo, local as fabric_l
 from fabric.api import put as fabric_put, get as fabric_get, cd as fabric_cd
 from fabric.decorators import task, runs_once, roles
 from fabric.colors import red
+from fabric.context_managers import settings
 try:
     import irclib
     irclib_loaded=True
