@@ -501,7 +501,7 @@ def update_package_repository(pip='CURRENT/bin/pip',
 
 
 def install_from_package_repository(pip='CURRENT/bin/pip',
-                            cache_directory='{home}/shared/pipdcache',
+                            cache_directory='file://{home}/shared/pipdcache',
                             requirements_file='{home}/tmp/requirements2.txt'):
     run(' '.join([pip, 'install', '--no-index', '--quiet', '--find-links',
                   cache_directory, '-r', requirements_file]).format(**env))
