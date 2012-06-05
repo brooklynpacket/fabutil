@@ -360,3 +360,158 @@ def irc_msg(server, port, nick, channel, msg, password=None, sleep=5):
 def delete_mail_queue():
     'Delete postfix email queue'
     sudo('postsuper -d ALL')
+
+
+def pre_deploy_check(directories=['.'],
+                     notes_files=set(['deploy_notes.txt', 'deploy_notes']),
+                     done_files=set(['deploy_done.txt', 'deploy_done'])):
+    '''Check for deployment tasks that have not been done.
+
+    It walks down from the specified directories, tries to find all
+    ``deploy_notes.txt`` and aggregates all deployment tasks. Then it does the
+    same to ``deploy_done.txt``. In the end, it compares the results together.
+    If there is any entry in ``deploy_notes`` that is not in ``deploy_done``,
+    it raises an :class:`EnvironmentError`.
+
+    Args:
+
+        directories (sequence of string): list of directories to recursively
+            dive in to find ``deploy_notes`` and ``deploy_done``
+        notes_files (collection of string): a set of file names that will be
+            considered ``deploy_notes`` files
+        done_files (collection of string): a set of file names that will be
+            considered ``deploy_done`` files
+
+    Raises:
+
+        EnvironmentError: if any entry in ``deploy_notes`` is not found
+            in ``deploy_done``
+
+    '''
+
+    def find_notes_and_done(directory, notes_files, done_files):
+        notes = set()
+        done = set()
+        # match at least 32 0-9a-f after (optional) commit, in a line
+        pattern = re.compile('^(commit )?([0-9a-fA-F]{32,})$')
+        for root, dirs, files in os.walk(directory):
+            for name in files:
+                if name in notes_files:
+                    var = notes
+                elif name in done_files:
+                    var = done
+                else:
+                    continue
+                name = os.path.join(root, name)
+                with open(name, 'rb') as inp:
+                    for line in inp:
+                        line = line.strip()
+                        matches = pattern.match(line)
+                        if matches:
+                            commit_id = matches.group(2)
+                            var.add(commit_id)
+
+        return notes, done
+
+    all_notes = set()
+    all_done = set()
+    for d in directories:
+        notes, done = find_notes_and_done(d, notes_files, done_files)
+        all_notes.update(notes)
+        all_done.update(done)
+
+    undone = all_notes - all_done
+    if undone:
+        raise EnvironmentError (
+                'There are undone pre-deployment tasks:\n\t' +
+                '\t'.join(undone))
+
+
+def origin_check():
+    '''Check if all commits are pushed out to origin/master.
+
+    Raises:
+
+        EnvironmentError: if either local branch is not ``master`` or it does
+            not point to the same commit as ``origin/master``
+
+    '''
+
+    # are we on master?
+    branch = ''
+    with settings(warn_only=True):
+        branch = local('git branch --no-color | grep "\* master"',
+                       capture=True).strip()
+    if not branch:
+        raise EnvironmentError('Local repository is not on master branch.')
+
+    # origin/master and master point to the same commit?
+    origin_latest = local('git log --no-color origin master -1')
+    local_latest = local('git log --no-color master -1')
+    if origin_latest != local_latest:
+        raise EnvironmentError('Local repository is different from origin.')
+
+
+def lock_check():
+    '''Check if other deployment has not completed cleanly.
+
+    It does this by looking at the last line of ``.fablog``. In case a previous
+    deployment was terminated abruptly, this function would still raise error.
+
+    Raises:
+
+        EnvironmentError: if another deployment has not completed cleanly
+
+    '''
+
+    last_line = ''
+    with settings(warn_only=True):
+        last_line = run('tail -n 1 .fablog')
+    if not (last_line.endswith(' ERROR.') or last_line.endswith(' DONE.')):
+        raise EnvironmentError(
+            'Previous deployment did not complete cleanly.\n\t' + last_line)
+
+
+@task
+@roles('web')
+def update_package_repository(pip='CURRENT/bin/pip',
+                              cache_directory='{home}/shared/pipdcache/',
+                              requirements_file='{home}/tmp/requirements.txt'):
+    '''Update local repository cache.
+
+    Latest packages from PyPI will be downloaded to $HOME/shared/pipdcache.
+
+    We will use this cache to install packages in :func:`deploy_bootstrap`.
+
+    We use ``CURRENT/bin/pip`` instead of ``/usr/bin/pip`` because the default
+    ``pip`` in Ubuntu is too old to support ``--download``.
+    '''
+
+    install_req = ' '.join([pip, 'install', '--download', cache_directory,
+                            '--no-install', '--exists-action', 'w', '-r',
+                            requirements_file]).format(**env)
+    # we need SSH forwarding here because some packages are checked out from
+    # private Github repository
+    sshagent_run(install_req)
+
+    # update timestamp
+    run('touch ' + cache_directory + '/.timestamp')
+
+
+def is_repository_out_of_date(cache_directory='{home}/shared/pipdcache/',
+                              days=15):
+    now = int(time.time())
+    # get timestamp of the cache directory
+    with settings(warn_only=True):
+        last_update = run('stat -c %Y ' +
+                          cache_directory + '/.timestamp 2>/dev/null')
+        # this is not a real string, we need to convert it to string
+        last_update = str(last_update)
+    try:
+        last_update = int(last_update)
+    except ValueError:
+        last_update = 0
+    # has it been days?
+    if now - last_update >= 86400 * days:
+        return True
+    return False
