@@ -9,6 +9,7 @@ from fabric.api import run as fabric_run, sudo as fabric_sudo, local as fabric_l
 from fabric.api import put as fabric_put, get as fabric_get, cd as fabric_cd
 from fabric.decorators import task, runs_once, roles
 from fabric.colors import red
+from fabric.contrib.files import exists, append, contains
 from fabric.context_managers import settings
 try:
     import irclib
@@ -133,6 +134,8 @@ def print_hosts():
 @roles('system-role')
 def configure_nginx(conf, name):
     env.nginx_vhost_name = name
+    env.python_version = run("""python -c 'import sys; print "python%d.%d" % (
+            sys.version_info.major, sys.version_info.minor)'""")
     put(conf, '/etc/nginx/sites-available/{nginx_vhost_name}',
         use_sudo=True, template=True)
     sudo('ln -sf /etc/nginx/sites-available/{nginx_vhost_name}'
@@ -229,6 +232,21 @@ def _setup_system_role_env(acct, home):
 
 @task
 @roles('system-role')
+def setup_base_system(acct=None, home=None):
+    _setup_system_role_env(acct, home)
+    hostname = run('hostname')
+    if not contains('/etc/hosts', hostname):
+        sudo('echo 127.0.0.1 %s >> /etc/hosts' % hostname)
+    packages = ['gcc', 'make', 'nginx', 'python-virtualenv', 'runit',
+                'subversion', 'git', 'python-dev', 'libevent-dev',
+                'postfix', 'memcached']
+    sudo('DEBIAN_FRONTEND=noninteractive apt-get -q -y install ' + ' '.join(packages))
+    if not exists('/srv'):
+        sudo('ln -s /mnt /srv')
+
+
+@task
+@roles('system-role')
 def setup_user(acct=None, home=None):
     _setup_system_role_env(acct, home)
     setup_user_account(acct, home)
@@ -307,10 +325,11 @@ def install_redis(conf='etc/redis.conf.template',
             break
 
     with cd(os.path.join(env.home, 'redis', 'src')):
-        run('wget "%s"' % src)
+        run('wget -c "%s"' % src)
         run(' '.join(('tar', untar_opts, redis_distro)))
 
     with cd(os.path.join(env.home, 'redis', 'src', redis_src_dir)):
+        run("sed '133 s/$/ -lm/' --in-place src/Makefile")
         run('make')
         run('make PREFIX={home}/redis/ install' % env)
 
