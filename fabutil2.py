@@ -241,7 +241,8 @@ def setup_base_system(acct=None, home=None):
                 'subversion', 'git', 'python-dev', 'libevent-dev',
                 'postfix', 'memcached']
     sudo('DEBIAN_FRONTEND=noninteractive apt-get -q -y install ' + ' '.join(packages))
-    if not exists('/srv'):
+    if not exists('/srv') or not str(run('ls /srv')):
+        sudo('rm -rf /srv')
         sudo('ln -s /mnt /srv')
 
 
