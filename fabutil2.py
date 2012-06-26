@@ -207,13 +207,17 @@ def sshagent_run(cmd):
     Note:: Fabric (and paramiko) can't forward your SSH agent.
     This helper uses your system's ssh to do so.
     """
+
+    if env.get('forward_agent', False):
+        return run(cmd)
+
     h = env.host_string
     try:
         # catch the port number to pass to ssh
         host, port = h.split(':')
-        local('ssh -p %s -A %s "%s"' % (port, host, cmd))
+        return local('ssh -p %s -A %s "%s"' % (port, host, cmd))
     except ValueError:
-        local('ssh -A %s "%s"' % (h, cmd))
+        return local('ssh -A %s "%s"' % (h, cmd))
 
 
 #
