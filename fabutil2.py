@@ -544,3 +544,39 @@ def is_repository_out_of_date(cache_directory='{home}/shared/pipdcache/',
     if now - last_update >= 86400 * days:
         return True
     return False
+
+
+@task
+@roles('web')
+def clone_mysql(source_host, source_user, source_pass, source_db,
+            dest_host, dest_user, dest_pass, dest_db):
+    local(' '.join(['mysqldump', '--add-drop-table', '--compress',
+            '--host', source_host, '--user', source_user,
+            '--password=' + source_pass, source_db,
+            '|',
+            'mysql', '--host', dest_host, '--user', dest_user,
+            '--password=' + dest_pass, dest_db]))
+
+
+def __get_db_conf(conf_file, profile):
+    global_dict = {}
+    local_dict = {}
+    execfile(conf_file, global_dict, local_dict)
+    dbconf = local_dict['DATABASES'][profile]
+    return dbconf
+
+@task
+@roles('web')
+def clone_from_config(source_config, dest_config):
+    source_conf = __get_db_conf(source_config, 'default')
+    source_db = source_conf['NAME']
+    source_host = source_conf['HOST']
+    source_user = source_conf['USER']
+    source_pass = source_conf['PASSWORD']
+    dest_conf = __get_db_conf(dest_config, 'default')
+    dest_db = dest_conf['NAME']
+    dest_host = dest_conf['HOST']
+    dest_user = dest_conf['USER']
+    dest_pass = dest_conf['PASSWORD']
+    clone_mysql(source_host, source_user, source_pass, source_db,
+            dest_host, dest_user, dest_pass, dest_db)
