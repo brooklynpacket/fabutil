@@ -554,12 +554,27 @@ def is_repository_out_of_date(cache_directory='{home}/shared/pipdcache/',
 @roles('web')
 def clone_mysql(source_host, source_user, source_pass, source_db,
             dest_host, dest_user, dest_pass, dest_db):
+    # the network diagram is like this
+    #
+    # dest_mysql <---> localhost <---> source_mysql
+    #
+    # dest_mysql might not be connectable to source_mysql
+    # and dest_mysql might only be listening on 127.0.0.1
+    #
+    # so the best way is to dump source_mysql to a local file
+    # upload that file to dest_mysql
+    # then restore the dump
+
     local(' '.join(['mysqldump', '--add-drop-table', '--compress',
             '--host', source_host, '--user', source_user,
             '--password=' + source_pass, source_db,
-            '|',
-            'mysql', '--host', dest_host, '--user', dest_user,
-            '--password=' + dest_pass, dest_db]))
+            '>',
+            '/tmp/__fab_mysql_dump.sql']))
+    put('/tmp/__fab_mysql_dump.sql', '/tmp/__fab_mysql_dump.sql')
+    run(' '.join(['mysql', '--host', dest_host, '--user', dest_user,
+            '--password=' + dest_pass, dest_db,
+            '<',
+            '/tmp/__fab_mysql_dump.sql']))
 
 
 def __get_db_conf(conf_file, profile):
@@ -571,13 +586,13 @@ def __get_db_conf(conf_file, profile):
 
 @task
 @roles('web')
-def clone_from_config(source_config, dest_config):
-    source_conf = __get_db_conf(source_config, 'default')
+def clone_from_config(source, dest):
+    source_conf = __get_db_conf(source, 'default')
     source_db = source_conf['NAME']
     source_host = source_conf['HOST']
     source_user = source_conf['USER']
     source_pass = source_conf['PASSWORD']
-    dest_conf = __get_db_conf(dest_config, 'default')
+    dest_conf = __get_db_conf(dest, 'default')
     dest_db = dest_conf['NAME']
     dest_host = dest_conf['HOST']
     dest_user = dest_conf['USER']
