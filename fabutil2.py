@@ -565,15 +565,22 @@ def clone_mysql(source_host, source_user, source_pass, source_db,
     # upload that file to dest_mysql
     # then restore the dump
 
+    with settings(warn_only=True):
+        for executable in ('mysql5', 'mysql'):
+            if str(run('which ' + executable)):
+                mysql_bin = executable
+        for executable in ('mysqldump5', 'mysqldump'):
+            if str(local('which ' + executable, capture=True)):
+                mysqldump_bin = executable
     try:
-        local(' '.join(['mysqldump', '--add-drop-table', '--compress',
+        local(' '.join([mysqldump_bin, '--add-drop-table', '--compress',
                 '--host', source_host, '--user', source_user,
                 '--password=' + source_pass, source_db,
                 '>',
                 '/tmp/__fab_mysql_dump.sql']))
         try:
             put('/tmp/__fab_mysql_dump.sql', '/tmp/__fab_mysql_dump2.sql')
-            run(' '.join(['mysql', '--host', dest_host, '--user', dest_user,
+            run(' '.join([mysql_bin, '--host', dest_host, '--user', dest_user,
                     '--password=' + dest_pass, dest_db,
                     '<',
                     '/tmp/__fab_mysql_dump2.sql']))
