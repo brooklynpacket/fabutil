@@ -588,7 +588,9 @@ def __get_db_conf(conf_file, profile):
 @task
 @roles('system-role')
 def setup_mysql():
-    sudo('DEBIAN_FRONTEND=noninteractive apt-get -q -y install mysql-server')
+    with settings(warn_only=True):
+        sudo('DEBIAN_FRONTEND=noninteractive apt-get -q -y '
+             'install mysql-server')
     db_conf = __get_db_conf(env.overrides, 'default')
     user = db_conf['USER']
     password = db_conf['PASSWORD']
