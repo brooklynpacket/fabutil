@@ -584,6 +584,28 @@ def __get_db_conf(conf_file, profile):
     dbconf = local_dict['DATABASES'][profile]
     return dbconf
 
+
+@task
+@roles('system-role')
+def setup_mysql():
+    sudo('DEBIAN_FRONTEND=noninteractive apt-get -q -y install mysql-server')
+    db_conf = __get_db_conf(env.overrides, 'default')
+    user = db_conf['USER']
+    password = db_conf['PASSWORD']
+    db = db_conf['NAME']
+    run('echo "'
+        'grant usage on *.* to %s@\'%%\'; drop user %s@\'%%\'; '
+        'create user \'%s\'@\'%%\' identified by \'%s\'; '
+        'grant usage on *.* to %s@\'localhost\'; drop user %s@\'localhost\'; '
+        'create user \'%s\'@\'localhost\' identified by \'%s\'; '
+        'drop database if exists %s; '
+        'create database %s default charset \'utf8\'; '
+        'grant all on %s.* to %s;" | mysql -u root mysql' % (
+                        user, user, user, password,
+                        user, user, user, password,
+                        db, db, db, user))
+
+
 @task
 @roles('web')
 def clone_from_config(source, dest):
