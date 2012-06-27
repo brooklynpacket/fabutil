@@ -135,7 +135,7 @@ def print_hosts():
 def configure_nginx(conf, name):
     env.nginx_vhost_name = name
     env.python_version = run("""python -c 'import sys; print "python%d.%d" % (
-            sys.version_info.major, sys.version_info.minor)'""")
+            sys.version_info[0], sys.version_info[1])'""")
     put(conf, '/etc/nginx/sites-available/{nginx_vhost_name}',
         use_sudo=True, template=True)
     sudo('ln -sf /etc/nginx/sites-available/{nginx_vhost_name}'
