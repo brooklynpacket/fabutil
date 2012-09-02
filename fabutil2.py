@@ -32,6 +32,8 @@ def set_defaults():
                                     capture=True)
     except:
         env.gitrev = None
+    else:
+        env.gitrev = env.gitrev.replace('/', '-')
     env.base = '{now}-{gitrev}'.format(**env)
 
 
