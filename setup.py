@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='fabutil',
-      version='0.2',
+      version='0.3',
       description='Helper functions for Fabric deployments.',
       author='Bo Shi',
       author_email='bs1984@gmail.com',
