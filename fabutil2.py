@@ -3,6 +3,7 @@ import re
 import os
 import socket
 import tempfile
+
 from datetime import datetime
 from fabric.api import env
 from fabric.api import run as fabric_run, sudo as fabric_sudo, local as fabric_local
@@ -527,7 +528,10 @@ def update_package_repository(pip='CURRENT/bin/pip',
     sshagent_run(install_req)
 
     # update timestamp
-    run('touch ' + cache_directory + '/.timestamp')
+    # we copy the requirements file here so that we can check if requirements
+    # have been changed later, in is_repository_out_of_date
+    run('cp --no-preserve=timestamps ' + requirements_file + ' ' +
+            cache_directory + '/.timestamp')
 
 
 def install_from_package_repository(pip='CURRENT/bin/pip',
@@ -538,21 +542,36 @@ def install_from_package_repository(pip='CURRENT/bin/pip',
 
 
 def is_repository_out_of_date(cache_directory='{home}/shared/pipdcache/',
-                              days=15):
-    now = int(time.time())
+                              days=15, requirements_file=None):
+
+    timestamp_file = cache_directory + '/.timestamp'
+
     # get timestamp of the cache directory
     with settings(warn_only=True):
-        last_update = run('stat -c %Y ' +
-                          cache_directory + '/.timestamp 2>/dev/null')
+        last_update = run('stat -c %Y ' + timestamp_file + ' 2>/dev/null')
         # this is not a real string, we need to convert it to string
         last_update = str(last_update)
     try:
         last_update = int(last_update)
     except ValueError:
         last_update = 0
+
     # has it been days?
+    now = int(time.time())
     if now - last_update >= 86400 * days:
         return True
+
+    if not requirements_file:
+        return False
+
+    # check content
+    try:
+        run('diff ' + requirements_file + ' ' + timestamp_file) 
+        # exit code = 0, no diff
+    except:
+        # requirements have been changed, cache is out of date
+        return True
+
     return False
 
 
