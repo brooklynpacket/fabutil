@@ -479,7 +479,7 @@ def origin_check():
         raise EnvironmentError('Local repository is not on master branch.')
 
     # origin/master and master point to the same commit?
-    origin_latest = local('git log --no-color origin master -1')
+    origin_latest = local('git log --no-color origin/master -1')
     local_latest = local('git log --no-color master -1')
     if origin_latest != local_latest:
         raise EnvironmentError('Local repository is different from origin.')
