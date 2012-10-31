@@ -246,7 +246,7 @@ def setup_base_system(acct=None, home=None):
     if not contains('/etc/hosts', hostname):
         sudo('echo 127.0.0.1 %s >> /etc/hosts' % hostname)
     packages = ['gcc', 'make', 'nginx', 'python-virtualenv', 'runit',
-                'subversion', 'python-dev', 'libevent-dev',
+                'subversion', 'python-dev', 'libevent-dev', 'ntp',
                 'postfix', 'memcached', 'openssl', 'libssl-dev']
     sudo('DEBIAN_FRONTEND=noninteractive apt-get -q -y install ' + ' '.join(packages))
     for package in ('git', 'git-core'):
