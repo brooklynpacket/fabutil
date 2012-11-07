@@ -21,6 +21,7 @@ except ImportError:
 
 def set_defaults():
     'Set default environment values.'
+
     env.deploy_user = getpass.getuser()
     env.deploy_hostname = socket.gethostname()
     env.format = True
@@ -28,14 +29,18 @@ def set_defaults():
     env.python = 'python'
     env.virtualenv = 'virtualenv -p {python} --no-site-packages --distribute'.format(**env)
     env.now = datetime.now().strftime('%Y%m%d%H%M%S')
+    env.disable_known_hosts = True
+
     try:
-        env.gitrev = fabric_local('git describe --dirty --all --long',
-                                    capture=True)
+        env.gitrev = fabric_local(
+            'git describe --dirty --all --long',
+            capture=True)
     except:
         env.gitrev = None
     else:
         env.gitrev = env.gitrev.replace('/', '-')
     env.base = '{now}-{gitrev}'.format(**env)
+
 
 
 #
