@@ -3,10 +3,10 @@
 from distutils.core import setup
 
 setup(name='fabutil',
-      version='0.3',
+      version='0.4',
       description='Helper functions for Fabric deployments.',
-      author='Bo Shi',
-      author_email='bs1984@gmail.com',
-      url='http://github.com/bshi/fabutil',
+      author='TinyCo',
+      author_email='backend@tinyco.com',
+      url='https://github.com/brooklynpacket/fabutil',
       py_modules = ['fabutil', 'fabutil2'],
 )
