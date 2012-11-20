@@ -480,7 +480,7 @@ def branch_check(intended_branch):
     elif branch_name != intended_branch:
         raise EnvironmentError(
             'Local repository is not on branch "%s", it is on "%s"!'
-            % (branch_name, intended_branch)
+            % (intended_branch, branch_name)
         )
     return branch_name
 
