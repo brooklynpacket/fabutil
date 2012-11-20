@@ -6,11 +6,17 @@ import tempfile
 
 from datetime import datetime
 from fabric.api import env
-from fabric.api import run as fabric_run, sudo as fabric_sudo, local as fabric_local
-from fabric.api import put as fabric_put, get as fabric_get, cd as fabric_cd
+from fabric.api import (
+    local,
+    run as fabric_run,
+    sudo as fabric_sudo,
+    put as fabric_put,
+    get as fabric_get,
+    cd as fabric_cd,
+)
 from fabric.decorators import task, runs_once, roles
 from fabric.colors import red
-from fabric.contrib.files import exists, append, contains
+from fabric.contrib.files import exists, contains
 from fabric.context_managers import settings
 try:
     import irclib
@@ -32,9 +38,10 @@ def set_defaults():
     env.disable_known_hosts = True
 
     try:
-        env.gitrev = fabric_local(
+        env.gitrev = local(
             'git describe --dirty --all --long',
-            capture=True)
+            capture=True,
+        )
     except:
         env.gitrev = None
     else:
@@ -77,23 +84,15 @@ def virtualenv(func):
         return func(command, *args, **kwargs)
     return wrapper
 
-
 @virtualenv
 @formatargs
 def run(command, **kwargs):
     return fabric_run(command, **kwargs)
 
-
 @virtualenv
 @formatargs
 def sudo(command, **kwargs):
     return fabric_sudo(command, **kwargs)
-
-
-@formatargs
-def local(command, **kwargs):
-    return fabric_local(command, **kwargs)
-
 
 @formatargs
 def put(local_path, remote_path, **kwargs):
@@ -464,31 +463,35 @@ def pre_deploy_check(directories=['.'],
                 'There are undone pre-deployment tasks:\n\t' +
                 '\t'.join(undone))
 
+def origin_check(intended_branch='master'):
+    branch_check(intended_branch)
+    push_check()
 
-def origin_check():
-    '''Check if all commits are pushed out to origin/master.
+def current_git_branch():
+    return local('git symbolic-ref --short -q HEAD', capture=True).strip()
 
-    Raises:
-
-        EnvironmentError: if either local branch is not ``master`` or it does
-            not point to the same commit as ``origin/master``
-
-    '''
-
-    # are we on master?
-    branch = ''
+def branch_check(intended_branch):
+    # Are we on the correct deployment branch?
+    branch_name = '(unnamed branch)'
     with settings(warn_only=True):
-        branch = local('git branch --no-color | grep "\* master"',
-                       capture=True).strip()
-    if not branch:
-        raise EnvironmentError('Local repository is not on master branch.')
+        branch_name = current_git_branch()
+    if not branch_name:
+        raise EnvironmentError('Could not determine current branch.')
+    elif branch_name != intended_branch:
+        raise EnvironmentError(
+            'Local repository is not on branch "%s", it is on "%s"!'
+            % (branch_name, intended_branch)
+        )
+    return branch_name
 
-    # origin/master and master point to the same commit?
-    origin_latest = local('git log --no-color origin/master -1')
-    local_latest = local('git log --no-color master -1')
+def push_check():
+    # Is our local branch synced with the origin?
+    branch_name = current_git_branch()
+    git_log = "git log --no-color --pretty=format:'%H' -n1"
+    origin_latest = local(git_log + ' origin/' + branch_name, capture=True)
+    local_latest = local(git_log + ' ' + branch_name, capture=True)
     if origin_latest != local_latest:
         raise EnvironmentError('Local repository is different from origin.')
-
 
 def lock_check():
     '''Check if other deployment has not completed cleanly.
