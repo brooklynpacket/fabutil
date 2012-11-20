@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='fabutil',
-      version='0.4',
+      version='0.5',
       description='Helper functions for Fabric deployments.',
       author='TinyCo',
       author_email='backend@tinyco.com',
