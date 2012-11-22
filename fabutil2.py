@@ -468,7 +468,9 @@ def origin_check(intended_branch='master'):
     push_check()
 
 def current_git_branch():
-    return local('git symbolic-ref --short -q HEAD', capture=True).strip()
+    branch_name_long = local('git symbolic-ref -q HEAD', capture=True).strip()
+    branch_name = branch_name_long.split('/')[-1]
+    return branch_name
 
 def branch_check(intended_branch):
     # Are we on the correct deployment branch?
