@@ -671,3 +671,51 @@ def clone_from_config(source, dest):
     dest_pass = dest_conf['PASSWORD']
     clone_mysql(source_host, source_user, source_pass, source_db,
             dest_host, dest_user, dest_pass, dest_db)
+
+def count_unfinished_migrations():
+    """
+    Check whether there are no migrations that have not been run.
+
+    Return 0 if all migrations have been run or there aren't any.
+    Otherwise return a count of unfinished migrations.
+    """
+    # Reference: http://stackoverflow.com/questions/7089969/programmatically-check-whether-there-are-django-south-migrations-that-need-to-be
+    from south import migration
+    from south.models import MigrationHistory
+
+    apps  = list(migration.all_migrations())
+
+    applied_migrations = MigrationHistory.objects.filter(app_name__in=[app.app_label() for app in apps])
+    applied_migrations = ['%s.%s' % (mi.app_name,mi.migration) for mi in applied_migrations]
+
+    num_new_migrations = 0
+    for app in apps:
+        for migration in app:
+            if migration.app_label() + "." + migration.name() not in applied_migrations:
+                num_new_migrations = num_new_migrations + 1
+
+    return num_new_migrations
+
+
+recorded_answers = {}
+def get_user_confirmation(message):
+    """
+    Ask the user to explicitly choose to continue despite some warning message.
+
+    This function remembers answers that have already been given, so you don't
+    have to re-answer the same warning for every server.
+    """
+    if message in recorded_answers:
+        return recorded_answers[message]
+
+    print red(message)
+
+    answer = ''
+    while True
+        answer = raw_input('Continue? [yes/no] ')
+        if answer == 'no':
+            recorded_answers[message] = False
+            return False
+        elif answer == 'yes':
+            recorded_answers[message] = True
+            return True
