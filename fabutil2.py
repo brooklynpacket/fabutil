@@ -679,23 +679,9 @@ def count_unfinished_migrations():
     Return 0 if all migrations have been run or there aren't any.
     Otherwise return a count of unfinished migrations.
     """
-    # Reference: http://stackoverflow.com/questions/7089969/programmatically-check-whether-there-are-django-south-migrations-that-need-to-be
-    from south import migration
-    from south.models import MigrationHistory
-
-    apps  = list(migration.all_migrations())
-
-    applied_migrations = MigrationHistory.objects.filter(app_name__in=[app.app_label() for app in apps])
-    applied_migrations = ['%s.%s' % (mi.app_name,mi.migration) for mi in applied_migrations]
-
-    num_new_migrations = 0
-    for app in apps:
-        for migration in app:
-            if migration.app_label() + "." + migration.name() not in applied_migrations:
-                num_new_migrations = num_new_migrations + 1
-
-    return num_new_migrations
-
+    with cd(env.project):
+        output = run('./manage.py migrate --list')
+    return output.count('( )')
 
 recorded_answers = {}
 def get_user_confirmation(message):
@@ -711,7 +697,7 @@ def get_user_confirmation(message):
     print red(message)
 
     answer = ''
-    while True
+    while True:
         answer = raw_input('Continue? [yes/no] ')
         if answer == 'no':
             recorded_answers[message] = False
