@@ -714,3 +714,8 @@ def get_user_confirmation(message):
         elif answer == 'yes':
             recorded_answers[message] = True
             return True
+
+@task
+@roles('system-role')
+def install_terrarium():
+    sudo('pip install -e git+git://github.com/brooklynpacket/terrarium.git#egg=terrarium')
