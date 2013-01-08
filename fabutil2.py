@@ -225,13 +225,14 @@ def sshagent_run(cmd):
     if env.get('forward_agent', False):
         return run(cmd)
 
-    h = env.host_string
-    try:
-        # catch the port number to pass to ssh
-        host, port = h.split(':')
-        return local('ssh -p %s -A %s "%s"' % (port, host, cmd))
-    except ValueError:
-        return local('ssh -A %s "%s"' % (h, cmd))
+    # Allow specifying the port in the host string. Which we will never do.
+    if ':' in env.host_string:
+        host, port = env.host_string.split(':')
+    else:
+        host = env.host_string
+        port = 22
+
+    return local('ssh -p %s -A %s "%s"' % (port, host, cmd))
 
 
 #
@@ -475,7 +476,9 @@ def origin_check(intended_branch='master'):
 
 def current_git_branch():
     branch_name_long = local('git symbolic-ref -q HEAD', capture=True).strip()
-    branch_name = branch_name_long.split('/')[-1]
+    prefix = 'refs/heads/'
+    assert branch_name_long.startswith(prefix)
+    branch_name = branch_name_long[len(prefix):]
     return branch_name
 
 def branch_check(intended_branch):
