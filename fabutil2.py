@@ -7,6 +7,7 @@ import tempfile
 from datetime import datetime
 from fabric.api import env
 from fabric.api import (
+    hide,
     local,
     run as fabric_run,
     sudo as fabric_sudo,
@@ -77,6 +78,10 @@ def formatargs(func):
 
 
 def virtualenv(func):
+    """
+    Wraps a run or sudo command so that you can pass virtualenv=True to make it
+    run in the python virtualenv.
+    """
     def wrapper(command, *args, **kwargs):
         if kwargs.pop('virtualenv', False) is True:
             activate = '{home}/releases/{base}/bin/activate'.format(**env)
@@ -679,8 +684,12 @@ def count_unfinished_migrations():
     Return 0 if all migrations have been run or there aren't any.
     Otherwise return a count of unfinished migrations.
     """
-    with cd(env.project):
-        output = run('./manage.py migrate --list')
+    with hide('running', 'stdout'):
+        with cd(env.project):
+            output = run(
+                'source {home}/CURRENT/bin/activate && '
+                './manage.py migrate --list'
+            )
     return output.count('( )')
 
 recorded_answers = {}
