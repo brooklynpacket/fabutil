@@ -212,6 +212,7 @@ def build_packages():
             local('rmdir {0}'.format(base_dist))
 
 
+@formatargs
 def sshagent_run(cmd):
     """
     Helper function.
