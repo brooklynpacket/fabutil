@@ -723,7 +723,7 @@ def clone_from_config(source, dest):
 @task
 @roles('system-role')
 def install_terrarium():
-    sudo('pip install -U virtualenv==1.7.2 -e git+git://github.com/brooklynpacket/terrarium.git#egg=terrarium')
+    sudo('pip install --upgrade -e git+git://github.com/brooklynpacket/terrarium.git#egg=terrarium')
 
 
 def load_overrides_settings(overrides=None):
