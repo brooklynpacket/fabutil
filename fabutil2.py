@@ -187,6 +187,44 @@ def sv(cmd, service):
 # Utility functions
 #
 
+def count_unfinished_migrations():
+    """
+    Check whether there are no migrations that have not been run.
+
+    Return 0 if all migrations have been run or there aren't any.
+    Otherwise return a count of unfinished migrations.
+    """
+    with hide('running', 'stdout'):
+        with cd(env.project):
+            output = run(
+                'source {home}/CURRENT/bin/activate && '
+                './manage.py migrate --list'
+            )
+    return output.count('( )')
+
+recorded_answers = {}
+def get_user_confirmation(message):
+    """
+    Ask the user to explicitly choose to continue despite some warning message.
+
+    This function remembers answers that have already been given, so you don't
+    have to re-answer the same warning for every server.
+    """
+    if message in recorded_answers:
+        return recorded_answers[message]
+
+    print red(message)
+
+    answer = ''
+    while True:
+        answer = raw_input('Continue? [yes/no] ')
+        if answer == 'no':
+            recorded_answers[message] = False
+            return False
+        elif answer == 'yes':
+            recorded_answers[message] = True
+            return True
+
 @task
 @runs_once
 def build_packages():
@@ -681,43 +719,6 @@ def clone_from_config(source, dest):
     clone_mysql(source_host, source_user, source_pass, source_db,
             dest_host, dest_user, dest_pass, dest_db)
 
-def count_unfinished_migrations():
-    """
-    Check whether there are no migrations that have not been run.
-
-    Return 0 if all migrations have been run or there aren't any.
-    Otherwise return a count of unfinished migrations.
-    """
-    with hide('running', 'stdout'):
-        with cd(env.project):
-            output = run(
-                'source {home}/CURRENT/bin/activate && '
-                './manage.py migrate --list'
-            )
-    return output.count('( )')
-
-recorded_answers = {}
-def get_user_confirmation(message):
-    """
-    Ask the user to explicitly choose to continue despite some warning message.
-
-    This function remembers answers that have already been given, so you don't
-    have to re-answer the same warning for every server.
-    """
-    if message in recorded_answers:
-        return recorded_answers[message]
-
-    print red(message)
-
-    answer = ''
-    while True:
-        answer = raw_input('Continue? [yes/no] ')
-        if answer == 'no':
-            recorded_answers[message] = False
-            return False
-        elif answer == 'yes':
-            recorded_answers[message] = True
-            return True
 
 @task
 @roles('system-role')
