@@ -722,4 +722,4 @@ def get_user_confirmation(message):
 @task
 @roles('system-role')
 def install_terrarium():
-    sudo('pip install -e git+git://github.com/brooklynpacket/terrarium.git#egg=terrarium')
+    sudo('pip install -U virtualenv==1.7.2 -e git+git://github.com/brooklynpacket/terrarium.git#egg=terrarium')
