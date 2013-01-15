@@ -724,3 +724,15 @@ def clone_from_config(source, dest):
 @roles('system-role')
 def install_terrarium():
     sudo('pip install -U virtualenv==1.7.2 -e git+git://github.com/brooklynpacket/terrarium.git#egg=terrarium')
+
+
+def load_overrides_settings(overrides=None):
+    #XXX: shares a bit too much with clone_from_config
+    if overrides is None:
+        overrides = env.overrides
+    overrides_settings = {}
+    execfile(overrides, {}, overrrides_settings)
+    if "REDIS_PORT" in overrides_settings:
+        env.redis_port = overrides_settings.REDIS_PORT
+    if "REDIS_PASSWORD" in overrides_settings:
+        env.redis_password = overrides_settings.REDIS_PASSWORD
