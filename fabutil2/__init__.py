@@ -555,7 +555,7 @@ def push_check():
     origin_latest = local(git_log + ' origin/' + branch_name, capture=True)
     local_latest = local(git_log + ' ' + branch_name, capture=True)
     if origin_latest != local_latest:
-        raise EnvironmentError('Local repository is different from origin.')
+        raise EnvironmentError('Local repository has un-pushed changes.')
 
 def lock_check():
     '''Check if other deployment has not completed cleanly.
