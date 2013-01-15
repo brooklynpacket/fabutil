@@ -17,7 +17,8 @@ from fabric.api import (
 )
 from fabric.decorators import task, runs_once, roles
 from fabric.colors import red
-from fabric.contrib.files import exists, contains
+from fabric.contrib import project
+from fabric.contrib.files import exists, contains, append
 from fabric.context_managers import settings
 try:
     import irclib
@@ -137,6 +138,14 @@ def print_hosts():
         for host in hosts:
             print '  ' + host
 
+@task
+@roles('web')
+def ping():
+    """
+    Check connectivity to each server.
+    """
+    run('hostname')
+
 
 #
 # Management Commands
@@ -169,12 +178,16 @@ def configure_sd_plugin(conf):
     sudo('perl -pi -e "s/^plugin_directory:.*\$/plugin_directory: \/usr\/bin\/sd-agent\/plugins/" -f /etc/sd-agent/config.cfg', user="sd-agent")
     sudo('/etc/init.d/sd-agent restart')
 
+
 @task
 @roles('web')
 def deploy_crontab():
-    if env.crontab:
+    # The crontab can either be specified as a string or in a template file.
+    if getattr(env, 'crontab', None) is not None:
         put(None, '{home}/tmp/crontab', putstr=env.crontab + '\n\n')
-        run('crontab {home}/tmp/crontab')
+    else:
+        put('lib/tinyservicelib/deploy/crontab.template', '{home}/tmp/crontab', template=True)
+    run('crontab {home}/tmp/crontab')
 
 
 @task
@@ -210,6 +223,8 @@ def get_user_confirmation(message):
     This function remembers answers that have already been given, so you don't
     have to re-answer the same warning for every server.
     """
+    global recorded_answers
+
     if message in recorded_answers:
         return recorded_answers[message]
 
@@ -736,3 +751,142 @@ def load_overrides_settings(overrides=None):
         env.redis_port = overrides_settings["REDIS_PORT"]
     if "REDIS_PASSWORD" in overrides_settings:
         env.redis_password = overrides_settings["REDIS_PASSWORD"]
+
+
+#
+# Code uploading
+#
+
+@task
+@roles('web')
+def update_code():
+    """
+    Create a new virtualenv on the server that has the correct pip packages
+    installed, and upload the code to that virtualenv.
+    """
+    try:
+        pre_deploy_check()
+        if env.environment == 'production':
+            branch_check('release')
+        push_check()
+        lock_check()
+    except EnvironmentError as e:
+        if not get_user_confirmation(str(e)):
+            return
+
+    env.nowstr = str(datetime.utcnow())
+    append('.fablog', '{nowstr} GMT [{base}] initiated by {deploy_user}@{deploy_hostname}.'.format(**env))
+    append('.ssh/config', 'StrictHostKeyChecking=no')
+    try:
+        deploy_bootstrap()
+        deploy_upload()
+        deploy_configure()
+        deploy_update()
+        deploy_crontab()
+    except:
+        env.nowstr = str(datetime.utcnow())
+        append('.fablog', '{nowstr} GMT [{base}] ERROR.'.format(**env))
+        # Remove the offending directory.
+        run('mv {home}/releases/{base} {home}/tmp/')
+        raise
+    else:
+        env.nowstr = str(datetime.utcnow())
+        append('.fablog', '{nowstr} GMT [{base}] DONE.'.format(**env))
+
+# The deploy_* can't quite yet be made into a @task since env.base is set to
+# the second resolution and we have no way of overriding it.
+def deploy_bootstrap():
+    'Create the base dir structure and bootstrap a virtualenv.'
+    run('mkdir -p releases service/{runit} tmp')
+    run('mkdir -p shared/{{log,run,lock,pipdcache}}')
+
+    reqs_file = '{home}/tmp/requirements.txt'
+    put('lib/tinyservicelib/deploy/requirements.txt', reqs_file)
+
+    sshagent_run('terrarium --target {home}/releases/{base} '
+                 '--s3-bucket tinyco.terrarium '
+                 '--s3-access-key AKIAJ7KPC7GIYX7K42AQ ' #terrarium user
+                 '--s3-secret-key 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 '
+                 '--s3-max-retries 3 '
+                 'install %s'
+                 % (reqs_file))
+
+    with cd('{home}/releases'):
+        run('mkdir -p {base}/{{var,etc,tmp}}')
+
+@task
+@runs_once
+def build_source_distribution():
+    base = os.path.dirname(__file__)
+    distdir = os.path.join(base, 'dist')
+    local('find {0} -name MANIFEST | xargs rm'.format(base))
+    local('rm -rf {0}'.format(distdir))
+    local('cd lib/tinyservicelib; python setup.py sdist')
+    local('python setup.py sdist')
+    local('mv lib/tinyservicelib/dist/* dist')
+    local('tar zvcf dist/project.tar.gz __init__.py settings.py manage.py urls.py templates')
+
+    local('bash lib/soa-protocol/bin/make_avprs.sh')
+
+def deploy_upload():
+    'Upload the project.'
+    build_source_distribution()
+    run('mkdir -p {project_deploy}')
+
+    def itarball(tarball):
+        put('dist/' + tarball, '{home}/releases/{base}/tmp/' + tarball)
+        run('pip install {home}/releases/{base}/tmp/' + tarball, virtualenv=True)
+
+    itarball('bluesteel-0.1.tar.gz')
+    itarball('tinyservicelib-2.0.tar.gz')
+
+    project.rsync_project('{home}/releases/{base}/etc/avpr'.format(**env), 'lib/soa-protocol/avpr/')
+
+    put('dist/project.tar.gz', '{home}/releases/{base}/tmp/project.tar.gz')
+    run('tar zxf {home}/releases/{base}/tmp/project.tar.gz -C {project_deploy}')
+
+    # We need to remove all .pyc files.
+    run("find {home}/releases/{base} -name '*.pyc' -delete")
+
+    put('lib/tinyservicelib/bin/agglog.sh', '{home}/releases/{base}/bin/agglog.sh')
+    run('chmod 755 {home}/releases/{base}/bin/agglog.sh')
+
+def deploy_configure():
+    'Build and deploy configuration files to environment.'
+
+    run('mkdir -p {home}/releases/{base}/etc/{{service,nginx}}')
+    run('mkdir -p {project_deploy}')
+
+    put('lib/tinyservicelib/deploy/run.template', '{home}/releases/{base}/etc/service/run', template=True)
+    put('lib/tinyservicelib/deploy/logrotate.conf.template', '{home}/releases/{base}/etc/logrotate.conf', template=True)
+    put('lib/tinyservicelib/deploy/guconf.py.template', '{project_deploy}/guconf.py', template=True)
+    put('lib/tinyservicelib/deploy/log.debug.conf', '{home}/releases/{base}/etc/log.debug.conf')
+    put('lib/tinyservicelib/deploy/bash_aliases.template', '{home}/.bash_aliases', template=True)
+
+    run('chmod 755 {home}/releases/{base}/etc/service/run')
+
+    if env.get('overrides', None) is not None:
+        put(env.overrides, '{project_deploy}/overrides.py')
+
+
+def deploy_update():
+    'Switch the active environment.'
+    # For some reason, ln -sf doesn't work x-(
+    run('rm -f {home}/CURRENT')
+    run('ln -sf {home}/releases/{base} {home}/CURRENT')
+    run('ln -sf {home}/shared/log/runit/current {home}/shared/log/django_log')
+    run('rm -f {home}/service/{runit}/run')
+    run('ln -sf {home}/CURRENT/etc/service/run {home}/service/{runit}/run')
+
+
+@task
+@roles('web')
+def flip():
+    count = count_unfinished_migrations()
+    if count > 0:
+        # Confirm with the user whether we want to sighup anyway.
+        get_user_confirmation("There are migrations that have not been run! ({} of them)".format(count))
+
+    # TODO use runit
+    sv('restart', '{runit}')
+
