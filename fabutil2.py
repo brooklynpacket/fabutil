@@ -731,8 +731,8 @@ def load_overrides_settings(overrides=None):
     if overrides is None:
         overrides = env.overrides
     overrides_settings = {}
-    execfile(overrides, {}, overrrides_settings)
+    execfile(overrides, {}, overrides_settings)
     if "REDIS_PORT" in overrides_settings:
-        env.redis_port = overrides_settings.REDIS_PORT
+        env.redis_port = overrides_settings["REDIS_PORT"]
     if "REDIS_PASSWORD" in overrides_settings:
-        env.redis_password = overrides_settings.REDIS_PASSWORD
+        env.redis_password = overrides_settings["REDIS_PASSWORD"]
