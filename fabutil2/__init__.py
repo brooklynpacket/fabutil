@@ -285,7 +285,14 @@ def sshagent_run(cmd):
         host = env.host_string
         port = 22
 
-    return local('ssh -p %s -A %s "%s"' % (port, host, cmd))
+    return local(
+        'ssh '
+        '-o "StrictHostKeyChecking no" '
+        '-p %s '
+        '-A %s '
+        '"%s"'
+        % (port, host, cmd)
+    )
 
 
 #
