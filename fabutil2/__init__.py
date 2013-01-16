@@ -824,7 +824,7 @@ def build_source_distribution():
     local('cd lib/tinyservicelib; python setup.py sdist')
     local('python setup.py sdist')
     local('mv lib/tinyservicelib/dist/* dist')
-    local('tar zvcf dist/project.tar.gz __init__.py settings.py manage.py urls.py templates')
+    local('tar zvcf dist/project.tar.gz __init__.py settings.py manage.py urls.py version.py templates')
 
     local('bash lib/soa-protocol/bin/make_avprs.sh')
 
@@ -837,7 +837,7 @@ def deploy_upload():
         put('dist/' + tarball, '{home}/releases/{base}/tmp/' + tarball)
         run('pip install {home}/releases/{base}/tmp/' + tarball, virtualenv=True)
 
-    itarball('bluesteel-0.1.tar.gz')
+    itarball('{package_name}-{version}.tar.gz')
     itarball('tinyservicelib-2.0.tar.gz')
 
     project.rsync_project('{home}/releases/{base}/etc/avpr'.format(**env), 'lib/soa-protocol/avpr/')
