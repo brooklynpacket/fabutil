@@ -38,6 +38,7 @@ def set_defaults():
     env.virtualenv = 'virtualenv -p {python} --no-site-packages --distribute'.format(**env)
     env.now = datetime.now().strftime('%Y%m%d%H%M%S')
     env.disable_known_hosts = True
+    env.django_admin_static_path = 'site-packages/django/contrib/admin/media/'
 
     try:
         env.gitrev = local(
@@ -156,8 +157,13 @@ def ping():
 @roles('system-role')
 def configure_nginx(conf, name):
     env.nginx_vhost_name = name
+
+    #grab the server's hostname, and ensure that it is a short name
+    env.server_hostname = run('hostname').strip().split(".", 1)[0]
+    
     env.python_version = run("""python -c 'import sys; print "python%d.%d" % (
             sys.version_info[0], sys.version_info[1])'""")
+    
     put(conf, '/etc/nginx/sites-available/{nginx_vhost_name}',
         use_sudo=True, template=True)
     sudo('ln -sf /etc/nginx/sites-available/{nginx_vhost_name}'
