@@ -868,7 +868,17 @@ def deploy_configure():
     put('lib/tinyservicelib/deploy/logrotate.conf.template', '{home}/releases/{base}/etc/logrotate.conf', template=True)
     put('lib/tinyservicelib/deploy/guconf.py.template', '{project_deploy}/guconf.py', template=True)
     put('lib/tinyservicelib/deploy/log.debug.conf', '{home}/releases/{base}/etc/log.debug.conf')
-    put('lib/tinyservicelib/deploy/bash_aliases.template', '{home}/.bash_aliases', template=True)
+
+    # Assemble a .bashrc and .profile from the system skeleton default, and our templated addendums.
+    # .bashrc is only run on interactive shell sessions
+    put('lib/tinyservicelib/deploy/bashrc_addendum.template', '{home}/.bashrc_addendum', template=True)
+    run('cat /etc/skel/.bashrc {home}/.bashrc_addendum > {home}/.bashrc')
+
+    # .profile is run on ssh commands through fab run() as well.
+    put('lib/tinyservicelib/deploy/profile_addendum.template', '{home}/.profile_addendum', template=True)
+    run('cat /etc/skel/.profile {home}/.profile_addendum > {home}/.profile')
+
+    run('rm -f {home}/.bash_aliases') # Remove bash_aliases from old deploys.
 
     run('chmod 755 {home}/releases/{base}/etc/service/run')
 
