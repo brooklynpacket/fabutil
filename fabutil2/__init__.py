@@ -781,7 +781,7 @@ def load_overrides_settings(overrides=None):
 
 @task
 @roles('web')
-def update_code():
+def update_code(rebuild=False):
     """
     Create a new virtualenv on the server that has the correct pip packages
     installed, and upload the code to that virtualenv.
@@ -800,7 +800,7 @@ def update_code():
     append('.fablog', '{nowstr} GMT [{base}] initiated by {deploy_user}@{deploy_hostname}.'.format(**env))
     append('.ssh/config', 'StrictHostKeyChecking=no')
     try:
-        deploy_bootstrap()
+        deploy_bootstrap(rebuild=rebuild)
         deploy_upload()
         deploy_configure()
         deploy_update()
@@ -817,21 +817,36 @@ def update_code():
 
 # The deploy_* can't quite yet be made into a @task since env.base is set to
 # the second resolution and we have no way of overriding it.
-def deploy_bootstrap():
-    'Create the base dir structure and bootstrap a virtualenv.'
+def deploy_bootstrap(rebuild=False):
+    """
+    Create the base dir structure and bootstrap a virtualenv.
+
+    This installs all packages in the requirements file into the virtualenv.
+    """
     run('mkdir -p releases service/{runit} tmp')
     run('mkdir -p shared/{{log,run,lock,pipdcache}}')
 
     reqs_file = '{home}/tmp/requirements.txt'
     put('lib/tinyservicelib/deploy/requirements.txt', reqs_file)
 
-    sshagent_run('terrarium --target {home}/releases/{base} '
-                 '--s3-bucket tinyco.terrarium '
-                 '--s3-access-key AKIAJ7KPC7GIYX7K42AQ ' #terrarium user
-                 '--s3-secret-key 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 '
-                 '--s3-max-retries 3 '
-                 'install %s'
-                 % (reqs_file))
+    # If we want to rebuild, ignore the existing S3 cached virtualenv.
+    no_download_option = ''
+    if rebuild:
+        no_download_option = '--no-download'
+
+    cmd = [
+        'terrarium',
+        '--target {home}/releases/{base}',
+        # S3 credentials for terrarium user.
+        '--s3-bucket tinyco.terrarium',
+        '--s3-access-key AKIAJ7KPC7GIYX7K42AQ',
+        '--s3-secret-key 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',
+        '--s3-max-retries 3',
+        no_download_option,
+        'install',
+        reqs_file,
+    ]
+    sshagent_run(' '.join(cmd))
 
     with cd('{home}/releases'):
         run('mkdir -p {base}/{{var,etc,tmp}}')
