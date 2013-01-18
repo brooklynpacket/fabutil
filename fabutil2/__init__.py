@@ -754,9 +754,8 @@ def install_terrarium():
     # This is a temporary fix. The correct way to do this is through a tool
     # such as puppet, but in the meantime, we need a quick way to get this up
     # and running on existing servers.
-    sudo('pip uninstall virtualenv')
-    sudo('pip install --upgrade virtualenv==1.8.4')
     sudo('pip install --upgrade pip')
+    sudo('pip install --upgrade virtualenv==1.8.4')
     sudo(
         'pip install --upgrade '
         '-e git+git://github.com/brooklynpacket/terrarium.git#egg=terrarium'
