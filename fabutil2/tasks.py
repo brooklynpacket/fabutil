@@ -1,6 +1,6 @@
 # Collecting common tasks here for easy import from fabfiles.
 from fabutil2 import (
-    update_code,
+    deploy,
     flip,
     ping,
     setup_base_system,
