@@ -931,8 +931,8 @@ def flip():
     count = count_unfinished_migrations()
     if count > 0:
         # Confirm with the user whether we want to sighup anyway.
-        get_user_confirmation("There are migrations that have not been run! ({} of them)".format(count))
+        msg = 'There are migrations that have not been run! (%d of them)' % count
+        if not get_user_confirmation(msg):
+            return
 
-    # TODO use runit
     sv('restart', '{runit}')
-
