@@ -953,8 +953,9 @@ def flip():
     # CURRENT -> NEW
     # NEW -> (deleted)
     actual_current = run('readlink {home}/CURRENT')
-    create_symlink(actual_current, '{home}/OLD')
     actual_new = run('readlink {home}/NEW')
+    if actual_current != actual_new:
+        create_symlink(actual_current, '{home}/OLD')
     create_symlink(actual_new, '{home}/CURRENT')
     run('rm -f {home}/NEW')
 
