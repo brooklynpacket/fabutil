@@ -794,15 +794,21 @@ def deploy(rebuild=False):
     Create a new virtualenv on the server that has the correct pip packages
     installed, and upload the code to that virtualenv.
     """
-    try:
-        pre_deploy_check()
+    def production_branch_check():
         if env.environment == 'production':
             branch_check('release')
-        push_check()
-        lock_check()
-    except EnvironmentError as e:
-        if not get_user_confirmation(str(e)):
-            return
+
+    for check in [
+        pre_deploy_check,
+        production_branch_check,
+        push_check,
+        lock_check,
+    ]:
+        try:
+            check()
+        except EnvironmentError as e:
+            if not get_user_confirmation(str(e)):
+                return
 
     # If there is a NEW symlink, maybe there is another unfinished deploy.
     if exists('{home}/NEW'):
