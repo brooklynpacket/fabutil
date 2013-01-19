@@ -941,16 +941,16 @@ def deploy_configure():
 @task
 @roles('web')
 def flip():
+    if not exists('{home}/NEW'):
+        print(red('Cannot flip, NEW symlink does not exist.'))
+        raise SystemExit()
+
     count = count_unfinished_migrations()
     if count > 0:
         # Confirm with the user whether we want to sighup anyway.
         msg = 'There are migrations that have not been run! (%d of them)' % count
         if not get_user_confirmation(msg):
             raise SystemExit()
-
-    if not exists('{home}/NEW'):
-        print(red('Cannot flip, NEW symlink does not exist.'))
-        raise SystemExit()
 
     # Switch symlinks so that the current code running is updated.
     # OLD -> CURRENT
