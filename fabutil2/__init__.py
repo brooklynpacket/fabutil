@@ -780,7 +780,7 @@ def load_overrides_settings(overrides=None):
 
 @task
 @roles('web')
-def update_code(rebuild=False):
+def deploy(rebuild=False):
     """
     Create a new virtualenv on the server that has the correct pip packages
     installed, and upload the code to that virtualenv.
