@@ -946,11 +946,35 @@ def flip():
         print(red('Cannot flip, NEW symlink does not exist.'))
         return
 
-    # Flip symlinks so that the current code running is switched out.
-    # Switch the CURRENT link to point to where NEW is, and remove the redundant NEW symlink.
-    new_current = run('readlink {home}/NEW')
-    create_symlink(new_current, '{home}/CURRENT')
+    # Switch symlinks so that the current code running is updated.
+    # OLD -> CURRENT
+    # CURRENT -> NEW
+    # NEW -> (deleted)
+    actual_current = run('readlink {home}/CURRENT')
+    create_symlink(actual_current, '{home}/OLD')
+    actual_new = run('readlink {home}/NEW')
+    create_symlink(actual_new, '{home}/CURRENT')
     run('rm -f {home}/NEW')
+
+    # Update symlinks for runit and logging.
+    create_symlink('{home}/shared/log/runit/current', '{home}/shared/log/django_log')
+    create_symlink('{home}/CURRENT/etc/service/run', '{home}/service/{runit}/run')
+
+    # Restart the runit service.
+    sv('restart', '{runit}')
+
+@task
+@roles('web')
+def backflip():
+    # Switch symlinks to undo the effects of flip().
+    # NEW -> CURRENT
+    # CURRENT -> OLD
+    # OLD -> (deleted)
+    actual_current = run('readlink {home}/CURRENT')
+    create_symlink(actual_current, '{home}/NEW')
+    actual_old = run('readlink {home}/OLD')
+    create_symlink(actual_old, '{home}/CURRENT')
+    run('rm -f {home}/OLD')
 
     # Update symlinks for runit and logging.
     create_symlink('{home}/shared/log/runit/current', '{home}/shared/log/django_log')
