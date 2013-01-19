@@ -808,13 +808,13 @@ def deploy(rebuild=False):
             check()
         except EnvironmentError as e:
             if not get_user_confirmation(str(e)):
-                return
+                raise SystemExit()
 
     # If there is a NEW symlink, maybe there is another unfinished deploy.
     if exists('{home}/NEW'):
         msg = 'The NEW symlink already exists. Another deploy may not have completed. Continue?'
         if not get_user_confirmation(msg):
-            return
+            raise SystemExit()
 
     env.nowstr = str(datetime.utcnow())
     append('.fablog', '{nowstr} GMT [{base}] initiated by {deploy_user}@{deploy_hostname}.'.format(**env))
@@ -946,11 +946,11 @@ def flip():
         # Confirm with the user whether we want to sighup anyway.
         msg = 'There are migrations that have not been run! (%d of them)' % count
         if not get_user_confirmation(msg):
-            return
+            raise SystemExit()
 
     if not exists('{home}/NEW'):
         print(red('Cannot flip, NEW symlink does not exist.'))
-        return
+        raise SystemExit()
 
     # Switch symlinks so that the current code running is updated.
     # OLD -> CURRENT
