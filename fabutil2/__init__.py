@@ -18,7 +18,7 @@ from fabric.api import (
 from fabric.decorators import task, runs_once, roles
 from fabric.colors import red
 from fabric.contrib import project
-from fabric.contrib.files import exists, contains, append
+from fabric.contrib.files import exists as fabric_exists, contains, append
 from fabric.context_managers import settings
 try:
     import irclib
@@ -129,6 +129,9 @@ def get(remote_path, local_path):
 def cd(remote_path):
     return fabric_cd(remote_path)
 
+@formatargs
+def exists(remote_path):
+    return fabric_exists(remote_path)
 
 @task
 @runs_once
@@ -245,6 +248,14 @@ def get_user_confirmation(message):
         elif answer == 'yes':
             recorded_answers[message] = True
             return True
+
+def create_symlink(actual_file, symlink_file):
+    """Create a symlink from symlink_file to actual_file."""
+    # For some reason, ln -sf doesn't work, so we have to manually remove existing symlinks.
+    run(
+        'rm -f %(symlink_file)s && ln -s %(actual_file)s %(symlink_file)s'
+        % {'actual_file': actual_file, 'symlink_file': symlink_file}
+    )
 
 @task
 @runs_once
@@ -795,6 +806,12 @@ def deploy(rebuild=False):
         if not get_user_confirmation(str(e)):
             return
 
+    # If there is a NEW symlink, maybe there is another unfinished deploy.
+    if exists('{home}/NEW'):
+        msg = 'The NEW symlink already exists. Another deploy may not have completed. Continue?'
+        if not get_user_confirmation(msg):
+            return
+
     env.nowstr = str(datetime.utcnow())
     append('.fablog', '{nowstr} GMT [{base}] initiated by {deploy_user}@{deploy_hostname}.'.format(**env))
     append('.ssh/config', 'StrictHostKeyChecking=no')
@@ -802,8 +819,9 @@ def deploy(rebuild=False):
         deploy_bootstrap(rebuild=rebuild)
         deploy_upload()
         deploy_configure()
-        deploy_update()
         deploy_crontab()
+        # Create a symlink called "NEW" to the newly deployed virtualenv.
+        create_symlink('{home}/releases/{base}', '{home}/NEW')
     except:
         env.nowstr = str(datetime.utcnow())
         append('.fablog', '{nowstr} GMT [{base}] ERROR.'.format(**env))
@@ -914,17 +932,6 @@ def deploy_configure():
     if env.get('overrides', None) is not None:
         put(env.overrides, '{project_deploy}/overrides.py')
 
-
-def deploy_update():
-    'Switch the active environment.'
-    # For some reason, ln -sf doesn't work x-(
-    run('rm -f {home}/CURRENT')
-    run('ln -sf {home}/releases/{base} {home}/CURRENT')
-    run('ln -sf {home}/shared/log/runit/current {home}/shared/log/django_log')
-    run('rm -f {home}/service/{runit}/run')
-    run('ln -sf {home}/CURRENT/etc/service/run {home}/service/{runit}/run')
-
-
 @task
 @roles('web')
 def flip():
@@ -935,4 +942,19 @@ def flip():
         if not get_user_confirmation(msg):
             return
 
+    if not exists('{home}/NEW'):
+        print(red('Cannot flip, NEW symlink does not exist.'))
+        return
+
+    # Flip symlinks so that the current code running is switched out.
+    # Switch the CURRENT link to point to where NEW is, and remove the redundant NEW symlink.
+    new_current = run('readlink {home}/NEW')
+    create_symlink(new_current, '{home}/CURRENT')
+    run('rm -f {home}/NEW')
+
+    # Update symlinks for runit and logging.
+    create_symlink('{home}/shared/log/runit/current', '{home}/shared/log/django_log')
+    create_symlink('{home}/CURRENT/etc/service/run', '{home}/service/{runit}/run')
+
+    # Restart the runit service.
     sv('restart', '{runit}')
