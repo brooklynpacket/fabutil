@@ -822,6 +822,8 @@ def deploy(rebuild=False):
         deploy_crontab()
         # Create a symlink called "NEW" to the newly deployed virtualenv.
         create_symlink('{home}/releases/{base}', '{home}/NEW')
+        if not exists('{home}/CURRENT'):
+            create_symlink('{home}/releases/{base}', '{home}/CURRENT')
     except:
         env.nowstr = str(datetime.utcnow())
         append('.fablog', '{nowstr} GMT [{base}] ERROR.'.format(**env))
