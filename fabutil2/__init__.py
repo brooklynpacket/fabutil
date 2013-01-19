@@ -52,7 +52,6 @@ def set_defaults():
     env.base = '{now}-{gitrev}'.format(**env)
 
 
-
 #
 # Deployment Helpers
 #
@@ -217,11 +216,10 @@ def count_unfinished_migrations():
     Otherwise return a count of unfinished migrations.
     """
     with hide('running', 'stdout'):
-        with cd(env.project):
-            output = run(
-                'source {home}/CURRENT/bin/activate && '
-                './manage.py migrate --list'
-            )
+        output = run(
+            'source {home}/NEW/bin/activate && '
+            '{home}/NEW/{package_name}/manage.py migrate --list'
+        )
     return output.count('( )')
 
 recorded_answers = {}
