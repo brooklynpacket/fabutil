@@ -8,5 +8,6 @@ setup(name='fabutil',
       author='TinyCo',
       author_email='backend@tinyco.com',
       url='https://github.com/brooklynpacket/fabutil',
-      py_modules = ['fabutil', 'fabutil2'],
+      py_modules = ['fabutil'],
+      packages = ['fabutil2'],
 )
