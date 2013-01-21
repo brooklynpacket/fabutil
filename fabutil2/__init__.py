@@ -816,6 +816,11 @@ def deploy(rebuild=False):
         if not get_user_confirmation(msg):
             raise SystemExit()
 
+    # All pre-deploy checks have passed.
+    # Warn existing logged in users that a deploy is happening.
+    msg = '{deploy_user}@{deploy_hostname} is deploying code for {acct}!'
+    run('echo "%s" | wall' % msg)
+
     env.nowstr = str(datetime.utcnow())
     append('.fablog', '{nowstr} GMT [{base}] initiated by {deploy_user}@{deploy_hostname}.'.format(**env))
     append('.ssh/config', 'StrictHostKeyChecking=no')
