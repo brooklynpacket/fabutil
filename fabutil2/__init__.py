@@ -948,7 +948,7 @@ def deploy_configure():
 @parallel
 def flip():
     if not exists('{home}/NEW'):
-        print(red('Cannot flip, NEW symlink does not exist.'))
+        print(red('Cannot update to newest code, NEW symlink does not exist.'))
         raise SystemExit()
 
     count = count_unfinished_migrations()
@@ -981,6 +981,10 @@ def flip():
 @parallel
 def backflip():
     # Switch symlinks to undo the effects of flip().
+    if not exists('{home}/OLD'):
+        print(red('Cannot revert to older code, OLD symlink does not exist.'))
+        raise SystemExit()
+
     # NEW -> CURRENT
     # CURRENT -> OLD
     # OLD -> (deleted)
