@@ -3,12 +3,12 @@ import re
 import os
 import socket
 import tempfile
-
 from datetime import datetime
-from fabric.api import env
 from fabric.api import (
+    env,
     hide,
     local,
+    parallel,
     run as fabric_run,
     sudo as fabric_sudo,
     put as fabric_put,
@@ -940,6 +940,7 @@ def deploy_configure():
 
 @task
 @roles('web')
+@parallel
 def flip():
     if not exists('{home}/NEW'):
         print(red('Cannot flip, NEW symlink does not exist.'))
@@ -972,6 +973,7 @@ def flip():
 
 @task
 @roles('web')
+@parallel
 def backflip():
     # Switch symlinks to undo the effects of flip().
     # NEW -> CURRENT
