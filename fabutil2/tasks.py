@@ -2,6 +2,7 @@
 from fabutil2 import (
     deploy,
     flip,
+    backflip,
     ping,
     setup_base_system,
     configure_nginx,
