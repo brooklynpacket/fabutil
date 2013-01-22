@@ -95,6 +95,15 @@ def virtualenv(func):
 def run(command, **kwargs):
     return fabric_run(command, **kwargs)
 
+class RunAggregator(object):
+    def __init__(self):
+        self.commands = []
+    def __enter__(self):
+        return self.commands.append
+    def __exit__(self, exc_type, exc_value, traceback):
+        run(' && '.join(self.commands))
+
+
 @virtualenv
 @formatargs
 def sudo(command, **kwargs):
@@ -185,17 +194,6 @@ def configure_sd_plugin(conf):
     put(conf, '/usr/bin/sd-agent/plugins/'+filename, template=True, use_sudo=True)
     sudo('perl -pi -e "s/^plugin_directory:.*\$/plugin_directory: \/usr\/bin\/sd-agent\/plugins/" -f /etc/sd-agent/config.cfg', user="sd-agent")
     sudo('/etc/init.d/sd-agent restart')
-
-
-@task
-@roles('web')
-def deploy_crontab():
-    # The crontab can either be specified as a string or in a template file.
-    if getattr(env, 'crontab', None) is not None:
-        put(None, '{home}/tmp/crontab', putstr=env.crontab + '\n\n')
-    else:
-        put('lib/tinyservicelib/deploy/crontab.template', '{home}/tmp/crontab', template=True)
-    run('crontab {home}/tmp/crontab')
 
 
 @task
@@ -826,6 +824,7 @@ def deploy(rebuild=False):
     append('.ssh/config', 'StrictHostKeyChecking=no')
     try:
         deploy_bootstrap(rebuild=rebuild)
+        build_source_distribution()
         deploy_upload()
         deploy_configure()
         deploy_crontab()
@@ -895,7 +894,6 @@ def build_source_distribution():
 
 def deploy_upload():
     'Upload the project.'
-    build_source_distribution()
     run('mkdir -p {project_deploy}')
 
     def itarball(tarball):
@@ -942,6 +940,16 @@ def deploy_configure():
 
     if env.get('overrides', None) is not None:
         put(env.overrides, '{project_deploy}/overrides.py')
+
+@task
+@roles('web')
+def deploy_crontab():
+    # The crontab can either be specified as a string or in a template file.
+    if getattr(env, 'crontab', None) is not None:
+        put(None, '{home}/tmp/crontab', putstr=env.crontab + '\n\n')
+    else:
+        put('lib/tinyservicelib/deploy/crontab.template', '{home}/tmp/crontab', template=True)
+    run('crontab {home}/tmp/crontab')
 
 @task
 @roles('web')
